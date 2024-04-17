@@ -60,13 +60,13 @@ class EB_QuantumESPRESSOcmake(CMakeMake):
     def extra_options():
         """Custom easyconfig parameters for Quantum ESPRESSO."""
         extra_vars = {
-            'with_cuda': [False, 'Enable CUDA support', CUSTOM],
             'with_scalapack': [True, 'Enable ScaLAPACK support', CUSTOM],
             'with_fox': [False, 'Enable FoX support', CUSTOM],
             'with_gipaw': [True, 'Enable GIPAW support', CUSTOM],
             'with_d3q': [False, 'Enable D3Q support', CUSTOM],
             'with_qmcpack': [False, 'Enable QMCPACK support', CUSTOM],
             'test_suite_nprocs': [1, 'Number of processors to use for the test suite', CUSTOM],
+            'test_suite_concurrent': [None, 'Number concurrent processes to spawn for the test suite', CUSTOM],
             'test_suite_allow_failures': [
                 [],
                 'List of test suite targets that are allowed to fail (name can partially match)',
@@ -99,6 +99,7 @@ class EB_QuantumESPRESSOcmake(CMakeMake):
         """Enable external libraries for Quantum ESPRESSO."""
         self._add_scalapack()
         self._add_fox()
+        self._add_fftw()
         self._add_hdf5()
         self._add_libxc()
         self._add_elpa()
@@ -131,9 +132,11 @@ class EB_QuantumESPRESSOcmake(CMakeMake):
 
     def _add_cuda(self):
         """Enable CUDA for Quantum ESPRESSO."""
-        if self.cfg.get('with_cuda', False):
+        if get_software_root('NVHPC'):
             self.cfg.update('configopts', '-DQE_ENABLE_CUDA=ON')
             self.cfg.update('configopts', '-DQE_ENABLE_OPENACC=ON')
+            if get_software_root('OpenMPI'):
+                self.cfg.update('configopts', '-DQE_ENABLE_MPI_GPU_AWARE=ON')
         else:
             self.cfg.update('configopts', '-DQE_ENABLE_CUDA=OFF')
             self.cfg.update('configopts', '-DQE_ENABLE_OPENACC=OFF')
@@ -153,6 +156,11 @@ class EB_QuantumESPRESSOcmake(CMakeMake):
             self.cfg.update('configopts', '-DQE_ENABLE_FOX=ON')
         else:
             self.cfg.update('configopts', '-DQE_ENABLE_FOX=OFF')
+
+    def _add_fftw(self):
+        """Check if external FFTW libraries are present for Quantum ESPRESSO."""
+        if not get_software_root('FFTW'):
+            self.cfg.update('configopts', '-DQE_FFTW_VENDOR=Internal')
 
     def _add_hdf5(self):
         """Enable HDF5 for Quantum ESPRESSO."""
@@ -275,7 +283,9 @@ class EB_QuantumESPRESSOcmake(CMakeMake):
         """
 
         thr = self.cfg.get('test_suite_threshold', 0.97)
-        concurrent = max(1, self.cfg.get('parallel', 1) // self._test_nprocs)
+        concurrent = self.cfg.get('test_suite_concurrent', None)
+        if concurrent is None:
+            concurrent = max(1, self.cfg.get('parallel', 1) // self._test_nprocs)
         allow_fail = self.cfg.get('test_suite_allow_failures', [])
 
         cmd = ' '.join([
