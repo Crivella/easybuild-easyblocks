@@ -52,6 +52,7 @@ class EB_LLVM(CMakeMake):
         extra_vars.update({
             'build_targets': [None, "Build targets for LLVM (host architecture if None). Possible values: " +
                                     ', '.join(CLANG_TARGETS), CUSTOM],
+            'with_examples': [False, "Build LLVM examples", CUSTOM],
             'enable_rtti': [True, "Enable RTTI", CUSTOM],
         })
 
@@ -79,6 +80,10 @@ class EB_LLVM(CMakeMake):
 
         self.cfg.update('configopts', '-DLLVM_INCLUDE_UTILS=ON')
         self.cfg.update('configopts', '-DLLVM_INSTALL_UTILS=ON')
+
+        if self.cfg['with_examples']:
+            self.cfg.update('configopts', '-DLLVM_BUILD_EXAMPLES=ON')
+            self.cfg.update('configopts', '-DLLVM_INCLUDE_EXAMPLES=ON')
 
         if get_software_root('zlib'):
             self.cfg.update('configopts', '-DLLVM_ENABLE_ZLIB=ON')
