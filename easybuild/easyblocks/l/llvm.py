@@ -30,14 +30,15 @@ EasyBuild support for building and installing LLVM, implemented as an easyblock
 """
 import os
 
-from easybuild.easyblocks.clang import CLANG_TARGETS, DEFAULT_TARGETS_MAP
-from easybuild.easyblocks.generic.cmakemake import CMakeMake
 from easybuild.framework.easyconfig import CUSTOM
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import move_file
 from easybuild.tools.modules import get_software_root
 from easybuild.tools.systemtools import get_cpu_architecture
-from easybuild.tools import LooseVersion
+
+from easybuild.easyblocks.clang import CLANG_TARGETS, DEFAULT_TARGETS_MAP
+from easybuild.easyblocks.generic.cmakemake import CMakeMake
 
 
 class EB_LLVM(CMakeMake):
@@ -76,6 +77,7 @@ class EB_LLVM(CMakeMake):
             if self.build_shared:
                 self.cfg.update('configopts', '-DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON')
 
+        self.cfg.update('configopts', '-DLLVM_INCLUDE_UTILS=ON')
         self.cfg.update('configopts', '-DLLVM_INSTALL_UTILS=ON')
 
         if get_software_root('zlib'):
