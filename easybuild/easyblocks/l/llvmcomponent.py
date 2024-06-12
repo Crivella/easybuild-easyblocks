@@ -258,6 +258,12 @@ class EB_LLVMcomponent(CMakeMake):
         self.cfg.update('configopts', "-DGCC_INSTALL_PREFIX='%s'" % gcc_prefix)
         self.log.debug("Using %s as GCC_INSTALL_PREFIX", gcc_prefix)
 
+        # If Z3 is included as a dep, enable support in static analyzer (if enabled)
+        z3_root = get_software_root("Z3")
+        if z3_root:
+            self.cfg.update('configopts', "-DLLVM_ENABLE_Z3_SOLVER=ON")
+            self.cfg.update('configopts', "-DLLVM_Z3_INSTALL_DIR=%s" % z3_root)
+
         self.check_files += [
             'bin/%s' % f for f in [
                 'clang', 'clang++', 'clang-cpp', 'clang-cl', 'clang-repl', 'hmaptool', 'amdgpu-arch', 'nvptx-arch',
@@ -274,9 +280,9 @@ class EB_LLVMcomponent(CMakeMake):
         ]
         self.check_commands += [
             ' | '.join([
-                'echo \'int main(int argc, char **argv) { return 1; }\'',
+                'echo \'int main(int argc, char **argv) { return 0; }\'',
                 'clang -xc -fplugin="$EBROOTPOLLY/lib/LLVMPolly.so" -O3 -mllvm -polly -'
-            ])
+            ]) + ' && ./a.out && rm -f a.out'
         ]
 
         cte_dir = os.path.join(self.builddir, 'clang-tools-extra')
@@ -305,8 +311,24 @@ class EB_LLVMcomponent(CMakeMake):
         if compiler_rt_root is None:
             raise EasyBuildError("compiler-rt is required to build Clang")
 
+        mlirsrc_dir = os.path.join(self.builddir, 'mlir')
+        if os.path.exists(mlirsrc_dir):
+            # Some test try to include files from the source directory of MLIR
+            self.cfg.update('configopts', "-DCMAKE_CXX_FLAGS=-I%s" % self.builddir)
+            self.cfg.update('configopts', "-DFLANG_INCLUDE_TESTS=On")
+            self.cfg.update('configopts', "-DLLVM_EXTERNAL_LIT=%s" % which('lit'))
+        else:
+            self.log.warn("MLIR source directory not found, disabling tests")
+            self.cfg.update('configopts', "-DFLANG_INCLUDE_TESTS=OFF")
+
         self.cfg.update('configopts', "-DFLANG_DEFAULT_LINKER=lld")
         self.cfg.update('configopts', "-DFLANG_DEFAULT_RTLIB=compiler-rt")
+        # Required for running tests
+        self.cfg.update('configopts', "-DLLVM_BUILD_EXAMPLES=ON")
+        self.cfg.update('configopts', "-DLLVM_INCLUDE_EXAMPLES=ON")
+
+        self.test_targets = ['check-all']
+
 
         self.check_files += [
             'bin/%s' % f for f in [
@@ -314,7 +336,7 @@ class EB_LLVMcomponent(CMakeMake):
             ]
         ] + [
             'lib/%s' % f for f in [
-                'libFortranRuntime.a', 'libFortranSNemantics.a', 'libFortranLower.a', 'libFortranParser.a',
+                'libFortranRuntime.a', 'libFortranSemantics.a', 'libFortranLower.a', 'libFortranParser.a',
                 'libFIRCodeGen.a', 'libflangFrontend.a', 'libFortranCommon.a', 'libFortranDecimal.a',
                 'libHLFIRDialect.a'
             ]
@@ -338,6 +360,11 @@ class EB_LLVMcomponent(CMakeMake):
         self.cfg.update('configopts', "-DMLIR_INCLUDE_TESTS=On")
         # self.cfg.update('configopts', "-DMLIR_INCLUDE_INTEGRATION_TESTS=On")
 
+        # rgx = re.compile(r'-DCMAKE_CXX_FLAGS="?(.*)"?')
+        # mch = rgx.match(self.cfg['configopts'])
+        # cmake_cxx_flags = ''
+        # if mch:
+        #     cmake_cxx_flags = mch.group(1)
         self.test_targets = ['check-mlir']
 
         self.check_files += [
@@ -525,13 +552,6 @@ class EB_LLVMcomponent(CMakeMake):
 
         # if "NVPTX" in build_targets:
         #     self.cfg.update('configopts', "-DPOLLY_ENABLE_GPGPU_CODEGEN=ON")
-
-        # If Z3 is included as a dep, enable support in static analyzer (if enabled)
-        # if self.cfg["static_analyzer"] and LooseVersion(self.version) >= LooseVersion('9.0.0'):
-        #     z3_root = get_software_root("Z3")
-        #     if z3_root:
-        #         self.cfg.update('configopts', "-DLLVM_ENABLE_Z3_SOLVER=ON")
-        #         self.cfg.update('configopts', "-DLLVM_Z3_INSTALL_DIR=%s" % z3_root)
 
         build_targets = self.cfg['build_targets']
 
