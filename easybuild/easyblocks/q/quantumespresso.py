@@ -145,7 +145,7 @@ class EB_QuantumESPRESSO(EasyBlock):
             """Enable toolchain options for Quantum ESPRESSO."""
             comp_fam = self.toolchain.comp_family()
 
-            allowed_toolchains = [toolchain.INTELCOMP, toolchain.GCC, toolchain.NVHPC]
+            allowed_toolchains = [toolchain.INTELCOMP, toolchain.GCC, toolchain.NVHPC, toolchain.LLVMTC]
             if comp_fam not in allowed_toolchains:
                 raise EasyBuildError(
                     "EasyBuild does not yet have support for QuantumESPRESSO with toolchain %s" % comp_fam
@@ -289,6 +289,8 @@ class EB_QuantumESPRESSO(EasyBlock):
 
         def _add_qmcpack(self):
             """Enable QMCPACK for Quantum ESPRESSO."""
+            if not get_software_root('HDF5'):
+                raise EasyBuildError('QMCPACK support requires HDF5')
             res = ['pw2qmcpack']
             self.check_bins += ['pw2qmcpack.x']
             return res

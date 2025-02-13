@@ -36,6 +36,7 @@ import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import ConfigureMake
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.toolchains.llvm import TC_CONSTANT_LLVMTC
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -214,6 +215,7 @@ class EB_ELPA(ConfigureMake):
         cpp_dict = {
             TC_CONSTANT_GCC: 'cpp',
             TC_CONSTANT_INTELCOMP: 'cpp',
+            TC_CONSTANT_LLVMTC: 'clang-cpp',
         }
         comp_fam = self.toolchain.comp_family()
         if comp_fam in cpp_dict:
