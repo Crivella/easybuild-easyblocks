@@ -42,6 +42,20 @@ from easybuild.tools.run import run_shell_cmd
 class FortranPythonPackage(PythonPackage):
     """Extends PythonPackage to add a Fortran compiler to the make call"""
 
+    def _unsed_ldflags(self):
+        """Ensure LDFLAGS is not set when building numpy/scipy, as it overwrites whatever numpy/scipy sets"""
+        ldflags = os.getenv('LDFLAGS')
+        if ldflags:
+            # LDFLAGS should not be set when building numpy/scipy, because it overwrites whatever numpy/scipy sets
+            # see http://projects.scipy.org/numpy/ticket/182
+            # don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4,
+            # see http://bugs.python.org/issue1287
+            cmdprefix = "unset LDFLAGS && "
+            self.log.debug(
+                "LDFLAGS was %s, will be cleared before %s build with '%s'" % (self.name, ldflags, cmdprefix)
+            )
+            self.cfg.update('prebuildopts', cmdprefix)
+
     def build_step(self):
         """Customize the build step by adding compiler-specific flags to the build command."""
 
@@ -49,22 +63,15 @@ class FortranPythonPackage(PythonPackage):
 
         if comp_fam == toolchain.INTELCOMP:  # @UndefinedVariable
             self.cfg.update('buildopts', "--compiler=intel --fcompiler=intelem")
-            cmd = "%s %s setup.py build %s" % (self.cfg['prebuildopts'], self.python_cmd, self.cfg['buildopts'])
+
+        elif comp_fam == toolchain.LLVMTC:  # @UndefinedVariable
+            # self.cfg.update('buildopts', "--compiler=gcc --fcompiler=llvm-flang")
+            self.cfg.update('buildopts', "--fcompiler=gnu95")
+            # self._unsed_ldflags()
 
         elif comp_fam in [toolchain.GCC, toolchain.CLANGGCC]:  # @UndefinedVariable
-            ldflags = os.getenv('LDFLAGS')
-            if ldflags:
-                # LDFLAGS should not be set when building numpy/scipy, because it overwrites whatever numpy/scipy sets
-                # see http://projects.scipy.org/numpy/ticket/182
-                # don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4,
-                # see http://bugs.python.org/issue1287
-                cmdprefix = "unset LDFLAGS && "
-                self.log.debug("LDFLAGS was %s, will be cleared before %s build with '%s'" % (self.name,
-                                                                                              ldflags,
-                                                                                              cmdprefix))
-                self.cfg.update('prebuildopts', cmdprefix)
-
             self.cfg.update('buildopts', "--fcompiler=gnu95")
+            self._unsed_ldflags()
 
         else:
             raise EasyBuildError("Unknown family of compilers being used: %s", comp_fam)
