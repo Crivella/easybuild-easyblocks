@@ -44,8 +44,24 @@ from easybuild.easyblocks.generic.mesonninja import MesonNinja
 from easybuild.easyblocks.generic.pythonpackage import PythonPackage, det_pylibdir
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file
+from easybuild.tools.filetools import change_dir, copy_dir, copy_file, apply_regex_substitutions
 
+
+llvm_subs = [
+    # flang-new does not support dependency file generation, so remove -MD -MQ -MF options 
+    # (Tested up to LLVM 20.1.0-rc1)
+    (r'flang-new \$ARGS -MD -MQ \$out -MF \$DEPFILE -o \$out -c \$in', 'flang-new $ARGS -o $out -c $in'),
+    # flang-new does not support -module option, so replace it with -J
+    (r'-module', '-J'),
+    # flang-new up to LLVM 19 does not support -fdiagnostics-color=always
+    (r'-fdiagnostics-color=always', ''),
+    # flang-new up to LLVM 20 does not support following options
+    (r'-fvisibility=hidden', ''),
+    (r'-Minform=inform', ''),
+    # Not sure where this is added but these are not available or needed with flang-new
+    (r'-lflang', ''),
+    (r'-lpgmath', ''),
+]
 
 class EB_scipy(FortranPythonPackage, PythonPackage, MesonNinja):
     """Support for installing the scipy Python package as part of a Python installation."""
@@ -139,8 +155,11 @@ class EB_scipy(FortranPythonPackage, PythonPackage, MesonNinja):
         if LooseVersion(self.version) >= LooseVersion('0.13'):
             # in recent scipy versions, additional compilation is done in the install step,
             # which requires unsetting $LDFLAGS
-            if self.toolchain.comp_family() in [toolchain.GCC, toolchain.CLANGGCC]:  # @UndefinedVariable
+            if self.toolchain.comp_family() in [toolchain.GCC, toolchain.CLANGGCC, toolchain.LLVMTC]:  # @UndefinedVariable
                 self.cfg.update('preinstallopts', "unset LDFLAGS && ")
+
+        if self.toolchain.comp_family() == toolchain.LLVMTC:
+            apply_regex_substitutions(os.path.join(self.builddir, 'easybuild_obj', 'build.ninja'), llvm_subs)
 
     def build_step(self):
         """Custom build step for scipy: use ninja for scipy >= 1.9.0"""
@@ -170,6 +189,10 @@ class EB_scipy(FortranPythonPackage, PythonPackage, MesonNinja):
             self.builddir = tmp_builddir
             self.installdir = tmp_installdir
             MesonNinja.configure_step(self)
+
+            if self.toolchain.comp_family() == toolchain.LLVMTC:
+                apply_regex_substitutions(os.path.join(tmp_builddir, 'easybuild_obj', 'build.ninja'), llvm_subs)
+
             MesonNinja.install_step(self)
             self.builddir = orig_builddir
             self.installdir = orig_installdir
@@ -177,6 +200,10 @@ class EB_scipy(FortranPythonPackage, PythonPackage, MesonNinja):
 
             tmp_pylibdir = os.path.join(tmp_installdir, det_pylibdir())
             self.prepare_python()
+
+            # This is probably not needed, but just in case
+            if self.toolchain.comp_family() == toolchain.LLVMTC:
+                apply_regex_substitutions(os.path.join(orig_builddir, 'easybuild_obj', 'build.ninja'), llvm_subs)
 
             self.cfg['pretestopts'] = " && ".join([
                 # LDFLAGS should not be set when testing numpy/scipy, because it overwrites whatever numpy/scipy sets
@@ -206,6 +233,8 @@ class EB_scipy(FortranPythonPackage, PythonPackage, MesonNinja):
     def install_step(self):
         """Custom install step for scipy: use ninja for scipy >= 1.9.0"""
         if self.use_meson:
+            if self.toolchain.comp_family() == toolchain.LLVMTC:
+                apply_regex_substitutions(os.path.join(self.builddir, 'easybuild_obj_0', 'build.ninja'), llvm_subs)
             MesonNinja.install_step(self)
 
             # copy PKG-INFO file included in scipy source tarball to scipy-<version>.egg-info in installation,
