@@ -179,6 +179,8 @@ class EB_CP2K(EasyBlock):
             options = self.configure_intel_based()
         elif comp_fam == toolchain.GCC:
             options = self.configure_GCC_based()
+        elif comp_fam == toolchain.LLVMTC:
+            options = self.configure_LLVM_based()
         else:
             raise EasyBuildError("Don't know how to tweak configuration for compiler family %s" % comp_fam)
 
@@ -567,6 +569,37 @@ class EB_CP2K(EasyBlock):
             # https://gcc.gnu.org/legacy-ml/gcc-patches/2019-10/msg01861.html
             options['FCFLAGSOPT'] += ' -fallow-argument-mismatch'
             options['FCFLAGSOPT2'] += ' -fallow-argument-mismatch'
+
+        return options
+
+    def configure_LLVM_based(self):
+        """Configure for LLVM based toolchains"""
+        options = self.configure_common()
+
+        options.update({
+            'FREE': '',
+
+            'LDFLAGS': '$(FCFLAGS)',
+            'OBJECTS_ARCHITECTURE': 'machine_llvm.o',
+        })
+
+        # options['DFLAGS'] += ' -D__GFORTRAN'
+        options['FYPPFLAGS'] = " "
+
+        options['FCFLAGSOPT'] += ' $(DFLAGS)'
+        options['FCFLAGSOPT2'] += ' $(DFLAGS)'
+
+        libxsmm = get_software_root('libxsmm')
+        if libxsmm:
+            options['FCFLAGS'] += ' -I%s' % os.path.join(libxsmm, 'include')
+
+        fftw_root = get_software_root('FFTW.MPI') or get_software_root('FFTW')
+        if fftw_root:
+            options['FCFLAGS'] += ' -I%s' % os.path.join(fftw_root, 'include')
+
+        libxc_root = get_software_root('libxc')
+        if libxc_root:
+            options['FCFLAGS'] += ' -I%s' % os.path.join(libxc_root, 'include')
 
         return options
 

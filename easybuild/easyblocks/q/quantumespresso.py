@@ -358,7 +358,8 @@ class EB_QuantumESPRESSO(EasyBlock):
                 return
 
             thr = self.cfg.get('test_suite_threshold', 0.97)
-            concurrent = max(1, self.cfg.parallel // self._test_nprocs)
+            # When compiled with OpenMP some tests silently requests up to 4 threads
+            concurrent = max(1, self.cfg.parallel // (self._test_nprocs * 4))
             allow_fail = self.cfg.get('test_suite_allow_failures', [])
 
             cmd = f'ctest -j{concurrent} --output-on-failure'
