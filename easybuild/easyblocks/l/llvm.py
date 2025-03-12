@@ -47,7 +47,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import apply_regex_substitutions, change_dir, copy_dir, copy_file
 from easybuild.tools.filetools import mkdir, remove_file, symlink, which, write_file
 from easybuild.tools.modules import MODULE_LOAD_ENV_HEADERS, get_software_root, get_software_version
-from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.run import run_shell_cmd, EasyBuildExit
 from easybuild.tools.systemtools import AARCH32, AARCH64, POWER, RISCV64, X86_64, POWER_LE
 from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_shared_lib_ext
 
@@ -812,7 +812,18 @@ class EB_LLVM(CMakeMake):
 
             self.log.debug("Building %s", stage_dir)
             cmd = f"make {self.make_parallel_opts} VERBOSE=1"
-            run_shell_cmd(cmd)
+            res = run_shell_cmd(cmd, fail_on_error=False)
+            # Observed in 20.1.0, the build of the offloading tools can fail due to 'cstdint' file not found
+            # But will succeed if executed again with -j 1 (possible missing dependency in the CMake logic?)
+            # See https://github.com/llvm/llvm-project/issues/130783
+            # 
+            if res.exit_code != EasyBuildExit.SUCCESS:
+                self.log.error("Build failed, attempting again with parallel ON")
+                res = run_shell_cmd(cmd, fail_on_error=False)
+            if res.exit_code != EasyBuildExit.SUCCESS:
+                self.log.error("Build failed, attempting again with parallel OFF")
+                cmd = "make -j 1 VERBOSE=1"
+                res = run_shell_cmd(cmd)
 
         change_dir(curdir)
 
@@ -1201,7 +1212,9 @@ class EB_LLVM(CMakeMake):
                 else:
                     # Starting from LLVM 19, omp related libraries are installed the runtime library directory
                     check_librt_files += omp_lib_files
-                    check_bin_files += ['llvm-omp-kernel-replay', 'llvm-omp-device-info']
+                    check_bin_files += ['llvm-omp-kernel-replay']
+                    if LooseVersion(self.version) <= LooseVersion('19'):  # This was removed in LLVM 20.1.0
+                        check_bin_files += ['llvm-omp-device-info']
 
         if self.cfg['build_openmp_tools']:
             check_files += [os.path.join('lib', 'clang', resdir_version, 'include', 'ompt.h')]
