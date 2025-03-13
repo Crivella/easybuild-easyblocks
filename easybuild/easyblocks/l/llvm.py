@@ -932,30 +932,6 @@ class EB_LLVM(CMakeMake):
 
             self.ignore_patterns = self.cfg['test_suite_ignore_patterns'] or []
 
-            # When rpath is enabled, the easybuild rpath wrapper will be used for compiling the tests
-            # A combination of -Werror and the wrapper translating LD_LIBRARY_PATH to -Wl,...
-            # flags will results in failing tests due to -Wunused-command-line-argument
-            # This has shown to be a problem in builds for 18.1.8, but seems it was not necessary for LLVM >= 19
-            # needs more digging into the CMake logic
-            if build_option('rpath') and LooseVersion(self.version) < LooseVersion('19') and self.cfg['build_runtimes']:
-                self.log.warning("Removing rpath wrapping of compiler from test suite as it will result in errors")
-
-                # rpath + offloading leads to a bunch of errors of the type:
-                #    terminate called after throwing an instance of '__gnu_cxx::recursive_init_error'
-                # in the test suite.
-                # TODO: check if this is the case without rpathing and trace down the error source
-                self.log.warning("Ignoring 'libomptarget ::' related errors in the test suite")
-                self.ignore_patterns.append('libomptarget :: ')
-
-                to_patch = set(['cmake-bridge.cfg.in'])
-                bin_dir = os.path.join(self.final_dir, 'bin')
-                clangxx = os.path.join(bin_dir, 'clang++')
-                subst = [('@CMAKE_CXX_COMPILER@', clangxx)]
-                for root, _dirs, files in os.walk(self.llvm_src_dir):
-                    for file in files:
-                        if file in to_patch:
-                            fpath = os.path.join(root, file)
-                            apply_regex_substitutions(fpath, subst)
 
             num_failed = self._para_test_step(parallel=1)
             if num_failed is None:
