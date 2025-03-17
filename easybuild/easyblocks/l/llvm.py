@@ -433,6 +433,13 @@ class EB_LLVM(CMakeMake):
         self._cfgopts = list(filter(None, self.cfg.get('configopts', '').split()))
         self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-%s.src' % self.version)
 
+    def prepare_step(self, *args, **kwargs):
+        """Prepare step, modified to ensure install dir is deleted before building"""
+        super(EB_LLVM, self).__init__(*args, **kwargs)
+        # re-create installation dir (deletes old installation),
+        # Needed to unsure hardcoded rpath do not point to old installation during runtime builds and testing
+        self.make_installdir()
+
     def _add_cmake_runtime_args(self):
         """Generate the value for 'RUNTIMES_CMAKE_ARGS' and add it to the cmake options."""
         if self.runtimes_cmake_args:
