@@ -58,11 +58,11 @@ BUILD_TARGET_NVPTX = 'NVPTX'
 
 LLVM_TARGETS = [
     'AArch64', BUILD_TARGET_AMDGPU, 'ARM', 'AVR', 'BPF', 'Hexagon', 'Lanai', 'LoongArch', 'Mips', 'MSP430',
-    BUILD_TARGET_NVPTX, 'PowerPC', 'RISCV', 'Sparc', 'SystemZ', 'VE', 'WebAssembly', 'X86', 'XCore',
+    BUILD_TARGET_NVPTX, 'PowerPC', 'RISCV', 'Sparc', 'SPIRV', 'SystemZ', 'VE', 'WebAssembly', 'X86', 'XCore',
     'all'
 ]
 LLVM_EXPERIMENTAL_TARGETS = [
-    'ARC', 'CSKY', 'DirectX', 'M68k', 'SPIRV', 'Xtensa',
+    'ARC', 'CSKY', 'DirectX', 'M68k', 'Xtensa',
 ]
 ALL_TARGETS = LLVM_TARGETS + LLVM_EXPERIMENTAL_TARGETS
 
