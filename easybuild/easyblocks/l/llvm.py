@@ -425,13 +425,11 @@ class EB_LLVM(CMakeMake):
             print_warning("'amd_gfx' specified, but AMDGPU not in manually specified build targets.")
 
         general_opts['CMAKE_BUILD_TYPE'] = self.build_type
-        general_opts['CMAKE_INSTALL_PREFIX'] = self.installdir
 
         general_opts['LLVM_TARGETS_TO_BUILD'] = '"%s"' % ';'.join(build_targets)
 
         self._cmakeopts = {}
         self._cfgopts = list(filter(None, self.cfg.get('configopts', '').split()))
-        self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-%s.src' % self.version)
 
     def prepare_step(self, *args, **kwargs):
         """Prepare step, modified to ensure install dir is deleted before building"""
@@ -571,6 +569,11 @@ class EB_LLVM(CMakeMake):
         self.make_parallel_opts = ""
         if self.cfg.parallel:
             self.make_parallel_opts = f"-j {self.cfg.parallel}"
+
+        # Moved here from the __init__ to ensure this easyblock can be used as a Bundle component
+        # https://github.com/easybuilders/easybuild-easyblocks/issues/3680
+        general_opts['CMAKE_INSTALL_PREFIX'] = self.installdir
+        self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-%s.src' % self.version)
 
         # Bootstrap
         self.llvm_obj_dir_stage1 = os.path.join(self.builddir, 'llvm.obj.1')
