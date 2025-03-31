@@ -379,24 +379,14 @@ class EB_LLVM(CMakeMake):
             # There are (old) toolchains with CUDA as part of the toolchain
             cuda_toolchain = hasattr(self.toolchain, 'COMPILER_CUDA_FAMILY')
             if 'cuda' in deps or cuda_toolchain or cuda_cc_list:
-                if LooseVersion(self.version) < LooseVersion('18'):
-                    self.log.info(f"Not auto-enabling {BUILD_TARGET_NVPTX} offload target, only done for LLVM >= 18")
-                else:
-                    build_targets.append(BUILD_TARGET_NVPTX)
-                    self.offload_targets += ['cuda']  # Used for LLVM >= 19
-                    self.log.debug(f"{BUILD_TARGET_NVPTX} enabled by CUDA dependency/cuda_compute_capabilities")
+                build_targets.append(BUILD_TARGET_NVPTX)
 
             # For AMDGPU support we need ROCR-Runtime and
             # ROCT-Thunk-Interface, however, since ROCT is a dependency of
             # ROCR we only check for the ROCR-Runtime here
             # https://openmp.llvm.org/SupportAndFAQ.html#q-how-to-build-an-openmp-amdgpu-offload-capable-compiler
             if 'rocr-runtime' in deps or amd_gfx_list:
-                if LooseVersion(self.version) < LooseVersion('18'):
-                    self.log.info(f"Not auto-enabling {BUILD_TARGET_AMDGPU} offload target, only done for LLVM >= 18")
-                else:
-                    build_targets.append(BUILD_TARGET_AMDGPU)
-                    self.offload_targets += ['amdgpu']  # Used for LLVM >= 19
-                    self.log.debug(f"{BUILD_TARGET_AMDGPU} enabled by rocr-runtime dependency/amd_gfx_list")
+                build_targets.append(BUILD_TARGET_AMDGPU)
 
             self.cfg['build_targets'] = build_targets
             self.log.debug("Using %s as default build targets for CPU architecture %s.", build_targets, arch)
@@ -409,6 +399,16 @@ class EB_LLVM(CMakeMake):
         exp_targets = set(build_targets) & set(LLVM_EXPERIMENTAL_TARGETS)
         if exp_targets:
             self.log.warning("Experimental targets %s are being used.", ', '.join(exp_targets))
+
+        # Enable offload targets for LLVM >= 18
+        if LooseVersion(self.version) >= LooseVersion('18'):
+            if BUILD_TARGET_NVPTX in build_targets:
+                self.offload_targets += ['cuda']
+                self.log.debug(f"{BUILD_TARGET_NVPTX} enabled by CUDA dependency/cuda_compute_capabilities")
+            if BUILD_TARGET_AMDGPU in build_targets:
+                self.offload_targets += ['amdgpu']  # Used for LLVM >= 19
+                self.log.debug(f"{BUILD_TARGET_AMDGPU} enabled by rocr-runtime dependency/amd_gfx_list")
+
 
         self.build_targets = build_targets or []
 
