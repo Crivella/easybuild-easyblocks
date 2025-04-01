@@ -1198,7 +1198,7 @@ class EB_LLVM(CMakeMake):
                     if LooseVersion(self.version) < LooseVersion('19'):
                         omp_lib_files += ['libomptarget.rtl.amdgpu.so']
                     if LooseVersion(self.version) < LooseVersion('20'):
-                        omp_lib_files += ['llibomptarget-amdgpu-%s.bc' % gfx for gfx in self.amd_gfx]
+                        omp_lib_files += ['libomptarget-amdgpu-%s.bc' % gfx for gfx in self.amd_gfx]
                     else:
                         omp_lib_files += ['libomptarget-amdgpu.bc']
 
