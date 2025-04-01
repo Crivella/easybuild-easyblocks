@@ -1162,7 +1162,7 @@ class EB_LLVM(CMakeMake):
         if 'polly' in self.final_projects:
             check_lib_files += ['libPolly.a', 'libPollyISL.a']
             if self.build_shared:
-                check_lib_files += ['libPolly.so']
+                check_lib_files += ['LLVMPolly.so']
             check_dirs += ['lib/cmake/polly', 'include/polly']
             custom_commands += [
                 ' | '.join([
@@ -1212,11 +1212,12 @@ class EB_LLVM(CMakeMake):
             custom_commands += ["python -c 'import clang'"]
             custom_commands += ["python -c 'import mlir'"]
 
-        for libso in filter(lambda x: x.endswith('.so'), check_lib_files):
-            libext = libso.replace('.so', shlib_ext)
-            if libext not in check_lib_files:
-                check_lib_files.append(libext)
-            check_lib_files.remove(libso)
+        if shlib_ext != '.so':
+            for libso in filter(lambda x: x.endswith('.so'), check_lib_files):
+                libext = libso.replace('.so', shlib_ext)
+                if libext not in check_lib_files:
+                    check_lib_files.append(libext)
+                check_lib_files.remove(libso)
 
         check_files += [os.path.join('bin', x) for x in check_bin_files]
         check_files += [os.path.join('lib', x) for x in check_lib_files]
