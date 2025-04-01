@@ -1222,17 +1222,18 @@ class EB_LLVM(CMakeMake):
             custom_commands += ["python -c 'import clang'"]
             custom_commands += ["python -c 'import mlir'"]
 
-        if shlib_ext != '.so':
-            for libso in filter(lambda x: x.endswith('.so'), check_lib_files):
-                libext = libso.replace('.so', shlib_ext)
-                if libext not in check_lib_files:
-                    check_lib_files.append(libext)
-                check_lib_files.remove(libso)
-
         check_files += [os.path.join('bin', x) for x in check_bin_files]
         check_files += [os.path.join('lib', x) for x in check_lib_files]
         check_files += [os.path.join(lib_dir_runtime, x) for x in check_librt_files]
         check_files += [os.path.join('include', x) for x in check_inc_files]
+
+        for libso in check_files:
+            if not libso.endswith('.so'):
+                continue
+            libext = libso.replace('.so', shlib_ext)
+            if libext not in check_files:
+                check_files.remove(libso)
+                check_files.append(libext)
 
         custom_paths = {
             'files': check_files,
