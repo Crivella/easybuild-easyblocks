@@ -1069,6 +1069,10 @@ class EB_LLVM(CMakeMake):
         elif arch == AARCH64:
             arch = 'aarch64'
 
+        all_target_cond = 'all' in self.build_targets
+        nvptx_target_cond = (BUILD_TARGET_NVPTX in self.build_targets) or all_target_cond
+        amdgpu_target_cond = (BUILD_TARGET_AMDGPU in self.build_targets) or all_target_cond
+
         check_files = []
         check_bin_files = []
         check_lib_files = []
@@ -1183,14 +1187,20 @@ class EB_LLVM(CMakeMake):
                 omp_lib_files += ['libomptarget.so']
                 if LooseVersion(self.version) < LooseVersion('19'):
                     omp_lib_files += ['libomptarget.rtl.%s.so' % arch]
-                if 'NVPTX' in self.cfg['build_targets']:
+                if nvptx_target_cond:
                     if LooseVersion(self.version) < LooseVersion('19'):
                         omp_lib_files += ['libomptarget.rtl.cuda.so']
-                    omp_lib_files += ['libomptarget-nvptx-sm_%s.bc' % cc for cc in self.cuda_cc]
-                if 'AMDGPU' in self.cfg['build_targets']:
+                    if LooseVersion(self.version) < LooseVersion('20'):
+                        omp_lib_files += ['libomptarget-nvptx-sm_%s.bc' % cc for cc in self.cuda_cc]
+                    else:
+                        omp_lib_files += ['libomptarget-nvptx.bc']
+                if amdgpu_target_cond:
                     if LooseVersion(self.version) < LooseVersion('19'):
                         omp_lib_files += ['libomptarget.rtl.amdgpu.so']
-                    omp_lib_files += ['llibomptarget-amdgpu-%s.bc' % gfx for gfx in self.amd_gfx]
+                    if LooseVersion(self.version) < LooseVersion('20'):
+                        omp_lib_files += ['llibomptarget-amdgpu-%s.bc' % gfx for gfx in self.amd_gfx]
+                    else:
+                        omp_lib_files += ['libomptarget-amdgpu.bc']
 
                 if LooseVersion(self.version) < LooseVersion('19'):
                     # Before LLVM 19, omp related libraries are installed under 'ROOT/lib''
