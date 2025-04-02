@@ -371,14 +371,22 @@ class EB_LLVM(CMakeMake):
             # If CUDA is included as a dep, add NVPTX as a target
             # There are (old) toolchains with CUDA as part of the toolchain
             cuda_toolchain = hasattr(self.toolchain, 'COMPILER_CUDA_FAMILY')
-            if 'cuda' in deps or cuda_toolchain or cuda_cc_list:
+            if 'cuda' in deps or cuda_toolchain:
+                self.log.info("CUDA dependency detected, adding NVPTX as a target")
+                build_targets.append(BUILD_TARGET_NVPTX)
+            elif cuda_cc_list:
+                self.log.info("CUDA compute capabilities specified, adding NVPTX as a target")
                 build_targets.append(BUILD_TARGET_NVPTX)
 
             # For AMDGPU support we need ROCR-Runtime and
             # ROCT-Thunk-Interface, however, since ROCT is a dependency of
             # ROCR we only check for the ROCR-Runtime here
             # https://openmp.llvm.org/SupportAndFAQ.html#q-how-to-build-an-openmp-amdgpu-offload-capable-compiler
-            if 'rocr-runtime' in deps or amd_gfx_list:
+            if 'rocr-runtime' in deps:
+                self.log.info("ROCR-Runtime dependency detected, adding AMDGPU as a target")
+                build_targets.append(BUILD_TARGET_AMDGPU)
+            elif amd_gfx_list:
+                self.log.info("AMD GPU list specified, adding AMDGPU as a target")
                 build_targets.append(BUILD_TARGET_AMDGPU)
 
             self.cfg['build_targets'] = build_targets
@@ -408,7 +416,7 @@ class EB_LLVM(CMakeMake):
                         raise EasyBuildError(f"LLVM < 20 requires 'cuda-compute-capabilities' to build with {BUILD_TARGET_NVPTX}")
                     self.cuda_cc = [cc.replace('.', '') for cc in cuda_cc_list]
                 self.offload_targets += ['cuda']
-                self.log.debug(f"{BUILD_TARGET_NVPTX} enabled by CUDA dependency/cuda_compute_capabilities")
+                self.log.debug(f"Enabling cuda offload target")
             if self.amdgpu_target_cond:
                 self.amd_gfx = []
                 if LooseVersion(self.version) < LooseVersion('20'):
@@ -416,7 +424,7 @@ class EB_LLVM(CMakeMake):
                         raise EasyBuildError(f"LLVM < 20 requires 'amd_gfx_list' to build with {BUILD_TARGET_AMDGPU}")
                     self.amd_gfx = amd_gfx_list
                 self.offload_targets += ['amdgpu']  # Used for LLVM >= 19
-                self.log.debug(f"{BUILD_TARGET_AMDGPU} enabled by rocr-runtime dependency/amd_gfx_list")
+                self.log.debug(f"Enabling amdgpu offload target")
 
 
         general_opts['CMAKE_BUILD_TYPE'] = self.build_type
