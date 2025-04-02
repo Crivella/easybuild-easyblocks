@@ -400,29 +400,31 @@ class EB_LLVM(CMakeMake):
         if exp_targets:
             self.log.warning("Experimental targets %s are being used.", ', '.join(exp_targets))
 
+        all_target_cond = 'all' in build_targets
+        self.nvptx_target_cond = (BUILD_TARGET_NVPTX in build_targets) or all_target_cond
+        self.amdgpu_target_cond = (BUILD_TARGET_AMDGPU in build_targets) or all_target_cond
+
+        self.build_targets = build_targets or []
+    
         # Enable offload targets for LLVM >= 18
         if LooseVersion(self.version) >= LooseVersion('18'):
-            if BUILD_TARGET_NVPTX in build_targets:
+            if self.nvptx_target_cond:
+                self.cuda_cc = []
+                if LooseVersion(self.version) < LooseVersion('20'):
+                    if not cuda_cc_list:
+                        raise EasyBuildError(f"LLVM < 20 requires 'cuda-compute-capabilities' to build with {BUILD_TARGET_NVPTX}")
+                    self.cuda_cc = [cc.replace('.', '') for cc in cuda_cc_list]
                 self.offload_targets += ['cuda']
                 self.log.debug(f"{BUILD_TARGET_NVPTX} enabled by CUDA dependency/cuda_compute_capabilities")
-            if BUILD_TARGET_AMDGPU in build_targets:
+            if self.amdgpu_target_cond:
+                self.amd_gfx = []
+                if LooseVersion(self.version) < LooseVersion('20'):
+                    if not amd_gfx_list:
+                        raise EasyBuildError(f"LLVM < 20 requires 'amd_gfx_list' to build with {BUILD_TARGET_AMDGPU}")
+                    self.amd_gfx = amd_gfx_list
                 self.offload_targets += ['amdgpu']  # Used for LLVM >= 19
                 self.log.debug(f"{BUILD_TARGET_AMDGPU} enabled by rocr-runtime dependency/amd_gfx_list")
 
-
-        self.build_targets = build_targets or []
-
-        self.cuda_cc = [cc.replace('.', '') for cc in cuda_cc_list]
-        if BUILD_TARGET_NVPTX in self.build_targets and not self.cuda_cc:
-            raise EasyBuildError("Can't build Clang with CUDA support without specifying 'cuda-compute-capabilities'")
-        if self.cuda_cc and BUILD_TARGET_NVPTX not in self.build_targets:
-            print_warning("CUDA compute capabilities specified, but NVPTX not in manually specified build targets.")
-
-        self.amd_gfx = amd_gfx_list
-        if BUILD_TARGET_AMDGPU in self.build_targets and not self.amd_gfx:
-            raise EasyBuildError("Can't build Clang with AMDGPU support without specifying 'amd_gfx_list'")
-        if self.amd_gfx and BUILD_TARGET_AMDGPU not in self.build_targets:
-            print_warning("'amd_gfx' specified, but AMDGPU not in manually specified build targets.")
 
         general_opts['CMAKE_BUILD_TYPE'] = self.build_type
 
@@ -942,7 +944,6 @@ class EB_LLVM(CMakeMake):
 
             self.ignore_patterns = self.cfg['test_suite_ignore_patterns'] or []
 
-
             num_failed = self._para_test_step(parallel=1)
             if num_failed is None:
                 raise EasyBuildError("Failed to extract test results from output")
@@ -1069,10 +1070,6 @@ class EB_LLVM(CMakeMake):
         elif arch == AARCH64:
             arch = 'aarch64'
 
-        all_target_cond = 'all' in self.build_targets
-        nvptx_target_cond = (BUILD_TARGET_NVPTX in self.build_targets) or all_target_cond
-        amdgpu_target_cond = (BUILD_TARGET_AMDGPU in self.build_targets) or all_target_cond
-
         check_files = []
         check_bin_files = []
         check_lib_files = []
@@ -1187,14 +1184,14 @@ class EB_LLVM(CMakeMake):
                 omp_lib_files += ['libomptarget.so']
                 if LooseVersion(self.version) < LooseVersion('19'):
                     omp_lib_files += ['libomptarget.rtl.%s.so' % arch]
-                if nvptx_target_cond:
+                if self.nvptx_target_cond:
                     if LooseVersion(self.version) < LooseVersion('19'):
                         omp_lib_files += ['libomptarget.rtl.cuda.so']
                     if LooseVersion(self.version) < LooseVersion('20'):
                         omp_lib_files += ['libomptarget-nvptx-sm_%s.bc' % cc for cc in self.cuda_cc]
                     else:
                         omp_lib_files += ['libomptarget-nvptx.bc']
-                if amdgpu_target_cond:
+                if self.amdgpu_target_cond:
                     if LooseVersion(self.version) < LooseVersion('19'):
                         omp_lib_files += ['libomptarget.rtl.amdgpu.so']
                     if LooseVersion(self.version) < LooseVersion('20'):
