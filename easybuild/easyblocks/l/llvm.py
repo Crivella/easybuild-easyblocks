@@ -475,7 +475,7 @@ class EB_LLVM(CMakeMake):
 
         if 'openmp' in self.final_projects:
             if LooseVersion(self.version) >= LooseVersion('19') and self.cfg['build_openmp_offload']:
-                self._cmakeopts['LIBOMPTARGET_PLUGINS_TO_BUILD'] = ';'.join(self.offload_targets)
+                self._cmakeopts['LIBOMPTARGET_PLUGINS_TO_BUILD'] = '"{}"'.format(';'.join(self.offload_targets))
             self._cmakeopts['OPENMP_ENABLE_LIBOMPTARGET'] = 'ON'
             self._cmakeopts['LIBOMP_INSTALL_ALIASES'] = 'OFF'
             if not self.cfg['build_openmp_tools']:
@@ -576,7 +576,10 @@ class EB_LLVM(CMakeMake):
         # Moved here from the __init__ to ensure this easyblock can be used as a Bundle component
         # https://github.com/easybuilders/easybuild-easyblocks/issues/3680
         general_opts['CMAKE_INSTALL_PREFIX'] = self.installdir
-        self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-%s.src' % self.version)
+        if LooseVersion(self.version) < LooseVersion('20.1.2'):
+            self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-%s.src' % self.version)
+        else:
+            self.llvm_src_dir = os.path.join(self.builddir, 'llvm-project-llvmorg-%s' % self.version)
 
         # Bootstrap
         self.llvm_obj_dir_stage1 = os.path.join(self.builddir, 'llvm.obj.1')
